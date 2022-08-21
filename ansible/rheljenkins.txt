@@ -1,0 +1,27 @@
+sudo yum install java-11-openjdk-devel -y
+sudo yum install docker podman -y
+sudo yum install wget nano -y
+sudo wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+sudo yum install jenkins -y
+sudo systemctl start jenkins
+
+sudo setenforce 0
+
+sudo groupadd docker
+sudo usermod -aG docker 
+
+sudo touch /etc/{subgid,subuid}
+sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 jenkins
+
+sudo nano /etc/selinux/config
+SELINUX=permissive
+
+sudo setenforce 0
+
+sudo podman tag localhost/ansible:latest chrisgennari/dry-run-cloud:jenkins-ansible
+sudo docker login docker.io
+sudo docker push chrisgennari/dry-run-cloud:jenkins-ansible
+
+sudo touch /etc/{subgid,subuid}
+sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 jenkins

@@ -1,0 +1,9 @@
+#notes
+create a docker-projects folder at root
+add docker-compose file
+subdir called ansible
+add dockerfile and sh scripts entrypoint and setup-sshd and make them executable
+create a keypair on the ec2 host jenkins_agent  jenkins_agent.pub
+share the pubkey with compose file
+docker agent:chown jenkins:jenkins .ssh
+jenkins master: install ssh-agent plugin

@@ -1,0 +1,31 @@
+# docker-compose.yaml
+version: '3.3'
+services:
+#  jenkins:
+#    image: jenkins/jenkins:lts
+#    privileged: true
+#    user: root
+#    ports:
+#     - 8080:8080
+#     - 50000:50000
+#    container_name: jenkins
+#    volumes:
+#     - /home/${myname}/jenkins_compose/jenkins_configuration:/var/jenkins_home
+#     - /var/run/docker.sock:/var/run/docker.sock
+  agent:
+    image: jenkins/ansible
+    privileged: true
+    user: root
+    container_name: agent
+    expose:
+      - 22
+    environment:
+      - JENKINS_AGENT_SSH_PUBKEY=ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDxBeWrRC1GwKDlbDjMwnV7Vk8UksKw+iPFGCCy5hG5YqLWvFOmLdrCjiFPeOF6eMLSfM+wRI/aiBa7+QCxeh6Ki3mETkGqWwF4DZhcmcBqtgb13u2VslEvupO7mPNE79zq5Azt1Mo649gLr/a8yJfy79mTYs+AP3F+VUT25KRzBnfpBcQ5yw0It6gD9gNSw/a0k4OeeZRTNhQKlBxiU9IOK7Mw1toAnxykpAheTirM1r7AQBkRHrGJrIaAIY7Vmlc8LHV7BNbKztydtrEI4spsoOI3CGD84Cizap4fBHsJCvIi0TOYgQZdKRQI1yqeZ7QYiezPmUotKAFi8I/M0TMV ec2-user@ip-10-0-0-155.us-west-1.compute.internal
+    networks:
+      customnetwork:
+        ipv4_address: 172.20.0.10
+networks:
+  customnetwork:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

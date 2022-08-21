@@ -1,0 +1,101 @@
+FROM eclipse-temurin:11.0.14.1_1-jdk-alpine
+
+# Metadata params
+ARG BUILD_DATE
+ARG ANSIBLE_VERSION=2.8
+ARG ANSIBLE_LINT_VERSION=4.3
+
+RUN apk --update --no-cache add \
+        ca-certificates \
+        git \
+        openssh-client \
+        openssl \
+        python3\
+        py3-pip \
+        py3-cryptography \
+        rsync \
+        sshpass
+
+RUN apk --update add --virtual \
+        .build-deps \
+        python3-dev \
+        libffi-dev \
+        openssl-dev \
+        build-base \
+        curl \
+ && pip3 install --upgrade \
+        pip \
+        cffi \
+ && pip3 install \
+        ansible==${ANSIBLE_VERSION} \
+        ansible-lint==${ANSIBLE_LINT_VERSION} \
+        docker-py \
+ && apk del \
+        .build-deps \
+ && rm -rf /var/cache/apk/*
+
+RUN mkdir -p /etc/ansible \
+ && echo 'localhost' > /etc/ansible/hosts \
+ && echo -e """\
+\n\
+Host *\n\
+    StrictHostKeyChecking no\n\
+    UserKnownHostsFile=/dev/null\n\
+""" >> /etc/ssh/ssh_config
+
+COPY entrypoint /usr/local/bin/
+
+WORKDIR /ansible
+
+ENTRYPOINT ["entrypoint"]
+
+WORKDIR /
+
+ARG user=jenkins
+ARG group=jenkins
+ARG uid=1000
+ARG gid=1000
+ARG JENKINS_AGENT_HOME=/home/${user}
+
+ENV JENKINS_AGENT_HOME ${JENKINS_AGENT_HOME}
+
+RUN mkdir -p "${JENKINS_AGENT_HOME}/.ssh/" \
+    && addgroup -g "${gid}" "${group}" \
+# Set the home directory (h), set user and group id (u, G), set the shell, don't ask for password (D)
+    && adduser -h "${JENKINS_AGENT_HOME}" -u "${uid}" -G "${group}" -s /bin/bash -D "${user}" \
+# Unblock user
+    && passwd -u "${user}"
+
+RUN apk add --no-cache \
+    bash \
+    openssh \
+    git-lfs \
+    netcat-openbsd \
+    openjdk11
+
+RUN mkdir /usr/local/openjdk-11/
+RUN mkdir /usr/local/openjdk-11/bin
+RUN ln -s /opt/java/openjdk/bin/java /usr/local/openjdk-11/bin/java
+
+# setup SSH server
+RUN sed -i /etc/ssh/sshd_config \
+        -e 's/#PermitRootLogin.*/PermitRootLogin no/' \
+        -e 's/#PasswordAuthentication.*/PasswordAuthentication no/' \
+        -e 's/#SyslogFacility.*/SyslogFacility AUTH/' \
+        -e 's/#LogLevel.*/LogLevel INFO/' \
+        -e 's/#PermitUserEnvironment.*/PermitUserEnvironment yes/' \
+    && mkdir /var/run/sshd
+
+VOLUME "${JENKINS_AGENT_HOME}" "/tmp" "/run" "/var/run"
+WORKDIR "${JENKINS_AGENT_HOME}"
+
+# Alpine's ssh doesn't use $PATH defined in /etc/environment, so we define `$PATH` in `~/.ssh/environment`
+# The file path has been created earlier in the file by `mkdir -p` and we also have configured sshd so that it will
+# allow environment variables to be sourced (see `sed` command related to `PermitUserEnvironment`)
+
+RUN echo "PATH=${PATH}" >> ${JENKINS_AGENT_HOME}/.ssh/environment
+COPY setup-sshd /usr/local/bin/setup-sshd
+
+EXPOSE 22
+
+ENTRYPOINT ["setup-sshd"]
